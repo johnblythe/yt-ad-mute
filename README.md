@@ -32,6 +32,10 @@ Open DevTools on a YouTube tab (⌘⌥J / Ctrl+Shift+J), set the log level to in
 
 YouTube renames its player markup every so often. If skipping stops, the selectors are at the top of `content.js`; there's also a fallback that finds any visible player button labelled "Skip".
 
+## Tests
+
+`node test/content.test.js` runs `content.js` against a fake player (mute on preroll, skip request timing, seek fallback, NaN-duration guard, unmute). No dependencies; exits non-zero on failure.
+
 ## Not covered
 
 - YouTube Music (different player markup).

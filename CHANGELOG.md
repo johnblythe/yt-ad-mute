@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- `test/content.test.js`: dependency-free simulation of `content.js` against a fake player (`node test/content.test.js`).
+
 ## [1.3.0] - 2026-10-25
 
 ### Added
