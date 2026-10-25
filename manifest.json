@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "YT Ad Mute",
+  "version": "1.2.1",
+  "description": "Mutes YouTube ads, skips them as soon as Skip is offered, unmutes when the ad is over, and auto-answers \"Continue watching?\".",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*",
+        "https://www.youtube-nocookie.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "world": "MAIN"
+    }
+  ]
+}
