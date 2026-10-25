@@ -1,11 +1,15 @@
-// YT Ad Mute: mutes while an ad plays, jumps to the end of the ad as soon as
-// YouTube offers Skip, and unmutes once the ad is gone (only if we were the
-// ones who muted). YouTube ignores scripted clicks on Skip (isTrusted=false),
-// so seeking the ad to its end stands in for the click. Also
-// keeps the "Video paused. Continue watching?" prompt from stopping playback.
+// YT Ad Mute: mutes while an ad plays, skips it as soon as YouTube offers
+// Skip, and unmutes once the ad is gone (only if we were the ones who muted).
+// YouTube ignores scripted clicks on Skip (isTrusted=false), so we ask the
+// background worker (via bridge.js) to send a real trusted click with
+// chrome.debugger. If the ad is still running 2s after that request, we fall
+// back to seeking the ad to its end, which ends it but leaves a static frame
+// for a few seconds. Also keeps the "Video paused. Continue watching?" prompt
+// from stopping playback.
 //
 // Runs in the page's MAIN world so it can use the player's own mute()/unMute()
-// API, which keeps YouTube's volume button in sync.
+// API, which keeps YouTube's volume button in sync. MAIN-world scripts can't
+// call chrome.*, hence the postMessage hop to bridge.js.
 (() => {
   const SKIP_SELECTOR = [
     '.ytp-skip-ad-button',
@@ -19,6 +23,10 @@
   const UNMUTE_DELAY_MS = 700;
   // If a seek doesn't take, try again after this long.
   const JUMP_RETRY_MS = 1500;
+  // Re-ask for a trusted click this often while Skip stays on screen.
+  const SKIP_REQUEST_RETRY_MS = 3000;
+  // Seek to the ad's end only if the click hasn't ended the ad after this long.
+  const JUMP_FALLBACK_MS = 2000;
   // Remember (per tab) that we muted, so a reload mid-ad still unmutes afterwards.
   const STORAGE_KEY = 'ytAdMute:weMuted';
   // YouTube decides you're idle from window._lact (last activity time).
@@ -29,6 +37,7 @@
   let inAd = false;
   let adEndedAt = 0;
   let lastJumpAt = 0;
+  let skipRequestedAt = 0;
   let weMuted = load();
 
   // console.debug only shows with DevTools' "Verbose" level on.
@@ -79,6 +88,12 @@
       if (/^skip/i.test(label) && isVisible(el)) return el;
     }
     return null;
+  }
+
+  function requestTrustedSkip() {
+    skipRequestedAt = Date.now();
+    log('skip: requesting trusted click');
+    window.postMessage({ source: 'yt-ad-mute', type: 'skip' }, location.origin);
   }
 
   function jumpToAdEnd() {
@@ -137,13 +152,21 @@
         log('ad started', { muted: isMuted(), weMuted });
       }
       // Only once Skip is on screen, so unskippable ads play out (muted) as usual.
-      if (findSkipButton()) jumpToAdEnd();
+      if (findSkipButton()) {
+        if (Date.now() - skipRequestedAt >= SKIP_REQUEST_RETRY_MS) requestTrustedSkip();
+        // The click normally ends the ad; seek only if it didn't.
+        if (skipRequestedAt && Date.now() - skipRequestedAt >= JUMP_FALLBACK_MS) jumpToAdEnd();
+      } else {
+        // Next ad in a pod gets its own click attempt and fallback timer.
+        skipRequestedAt = 0;
+      }
       return;
     }
 
     if (inAd) {
       inAd = false;
       adEndedAt = Date.now();
+      skipRequestedAt = 0;
     }
     if (weMuted && Date.now() - adEndedAt >= UNMUTE_DELAY_MS) {
       // If the user unmuted mid-ad themselves, there's nothing to undo.
@@ -158,6 +181,6 @@
     dismissStillWatching();
   }, TICK_MS);
   setInterval(keepAlive, KEEP_ALIVE_MS);
-  log('loaded v1.2.1');
+  log('loaded v1.3.0');
   update();
 })();
