@@ -4,6 +4,7 @@
 
 ### Added
 - `test/content.test.js`: dependency-free simulation of `content.js` against a fake player (`node test/content.test.js`).
+- `docs/solutions/`: write-ups of why scripted Skip clicks fail (and the trusted-click fix), and of the stale mute flag that stopped ads muting after a refresh.
 
 ## [1.3.0] - 2026-10-25
 
